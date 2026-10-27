@@ -160,8 +160,8 @@
             <div class="card hover-effect max-w-lg mx-auto mb-8 p-6">
                 <h2 class="text-2xl font-bold text-[#A3E4FF] mb-4">Calculate Epoch Rewards</h2>
                 <form id="inputForm">
-                    <label for="rpcUrl" class="text-sm text-[#D4C2F0] mb-2 block">RPC URL (default: https://rpc.ankr.com/xdc):</label>
-                    <input type="text" id="rpcUrl" placeholder="https://rpc.ankr.com/xdc" class="w-full p-3 mb-4 rounded-lg bg-[#2E2A6A] text-[#F3E8FF] border border-[#A3E4FF]/30 focus:outline-none max-sm:text-sm">
+                    <label for="rpcUrl" class="text-sm text-[#D4C2F0] mb-2 block">RPC URL (default: https://rpc.plugin.global/xdcmainnet):</label>
+                    <input type="text" id="rpcUrl" placeholder="https://rpc.plugin.global/xdcmainnet" class="w-full p-3 mb-4 rounded-lg bg-[#2E2A6A] text-[#F3E8FF] border border-[#A3E4FF]/30 focus:outline-none max-sm:text-sm">
 
                     <label for="startDate" class="text-sm text-[#D4C2F0] mb-2 block">Start Date (YYYY-MM-DD):</label>
                     <input type="text" id="startDate" required pattern="\d{4}-\d{2}-\d{2}" placeholder="YYYY-MM-DD" class="w-full p-3 mb-4 rounded-lg bg-[#2E2A6A] text-[#F3E8FF] border border-[#A3E4FF]/30 focus:outline-none max-sm:text-sm">
@@ -391,7 +391,7 @@
             output.textContent = 'Starting calculation...\n';
             output.classList.remove('error');
             try {
-                const rpcUrl = document.getElementById('rpcUrl').value || 'https://rpc.ankr.com/xdc';
+                const rpcUrl = document.getElementById('rpcUrl').value || 'https://rpc.plugin.global/xdcmainnet';
                 const startDate = document.getElementById('startDate').value;
                 const endDate = document.getElementById('endDate').value;
                 let ownerAddr = document.getElementById('ownerAddr').value;
