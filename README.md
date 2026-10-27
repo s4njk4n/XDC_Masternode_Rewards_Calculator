@@ -25,7 +25,7 @@ It spits out the total inferred epoch rewards in XDC, plus a breakdown of balanc
 
 1. **Date to Blocks Conversion**: It takes your start and end dates, converts them to Unix timestamps, and uses binary search on the blockchain to find the exact block numbers where your period starts and ends.
 
-2. **Balance Checks**: It grabs your wallet balance right before the start block and at the end block using RPC calls to an XDC node (default is a public one from Ankr).
+2. **Balance Checks**: It grabs your wallet balance right before the start block and at the end block using RPC calls to an XDC node (default is a public one from Plugin).
 
 3. **Transaction History**: Using the Etherscan API, it pulls all normal and internal transactions for your address in that block range. It tallies up:
    - Money coming in (transfers to you).
@@ -48,7 +48,7 @@ Note: This assumes all unexplained balance increases are from masternode epoch r
 1. **Open the Page**
 
 2. **Fill in the Fields**:
-   - **RPC URL**: This is the endpoint to talk to the XDC blockchain. Default is https://rpc.ankr.com/xdc, which is free and public. You can change it if you have your own node or prefer another provider.
+   - **RPC URL**: This is the endpoint to talk to the XDC blockchain. Default is https://rpc.plugin.global/xdcmainnet, which is free and public. You can change it if you have your own node or prefer another provider.
    - **Start Date**: The beginning of the period, format YYYY-MM-DD (e.g., 2024-01-01).
    - **End Date**: The end, same format. Make sure it's after the start date.
    - **Masternode Owner Address**: Your wallet address that owns the masternode. Can start with "xdc" or "0x" (both prefixes are supported on the page).
