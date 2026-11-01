@@ -2,7 +2,7 @@ _In Beta - Let me know if you find specific issues_
 
 # XDC Masternode Epoch Rewards Calculator
 
-Live site is at: https://xdcoutpost.xyz/XDC_Masternode_Rewards_Calculator/
+Live site is at: https://xdcoutpost.xyz/XDC_Masternode_Rewards_Calculator/?utm_source=github
 
 ![XDC Masternode Rewards Checker](XDC_Masternode_Rewards_Checker2.jpg)
 
