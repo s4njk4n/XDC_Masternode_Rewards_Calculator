@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>XDC Masternode Epoch Rewards Calculator | XDC Outpost</title>
+  <meta name="license" content="MIT">
+  <meta name="description" content="Work out the epoch rewards an XDC masternode owner address earned over any period, inferred from on-chain balances and transactions. Free, runs in your browser.">
+  <link rel="canonical" href="https://xdcoutpost.xyz/XDC_Masternode_Rewards_Calculator/">
+  <meta name="theme-color" content="#1E1A4A">
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://xdcoutpost.xyz/XDC_Masternode_Rewards_Calculator/">
+  <meta property="og:title" content="XDC Masternode Epoch Rewards Calculator">
+  <meta property="og:description" content="How much did your XDC masternode earn? Pick a period and get the inferred epoch rewards, with a full breakdown.">
+  <meta property="og:image" content="https://xdcoutpost.xyz/XDC_Masternode_Rewards_Calculator/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@s4njk4n">
+
+  <link rel="preload" href="/assets/fonts/bricolage.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/assets/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin>
+
+  <style>
+    @font-face {
+      font-family: "Bricolage";
+      src: url("/assets/fonts/bricolage.woff2") format("woff2-variations");
+      font-weight: 200 800; font-stretch: 75% 100%; font-display: swap;
+    }
+    @font-face {
+      font-family: "Instrument Sans";
+      src: url("/assets/fonts/instrument-sans.woff2") format("woff2-variations");
+      font-weight: 400 700; font-stretch: 75% 100%; font-display: swap;
+    }
+
+    /* ---- Shared XDC Outpost tokens ---- */
+    :root {
+      --night: #1E1A4A;
+      --deep: #19163F;
+      --dusk: #2B2566;
+      --line: #443D84;
+      --ink: #F2EDFF;
+      --mist: #C3B8EA;
+      --signal: #8FDCFF;
+      --flare: #FF9EBB;
+      --ok: #6EE7B7;
+      --display: "Bricolage", "Avenir Next", "Segoe UI", sans-serif;
+      --body: "Instrument Sans", "Helvetica Neue", "Segoe UI", sans-serif;
+      --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      --wrap: 72rem;
+      --gutter: clamp(1.25rem, 4vw, 2.5rem);
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+    body {
+      margin: 0; background: var(--night); color: var(--ink);
+      font-family: var(--body); font-size: 1.0625rem; line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: var(--signal); text-underline-offset: 0.2em; }
+    a:hover { color: var(--ink); }
+    :focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; border-radius: 4px; }
+    [hidden] { display: none !important; }
+    .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
+    .nb { white-space: nowrap; }
+    .skip { position: absolute; left: 1rem; top: -3rem; background: var(--signal); color: var(--night); padding: 0.5rem 1rem; border-radius: 6px; font-weight: 600; z-index: 20; }
+    .skip:focus { top: 1rem; }
+
+    /* Header (matches xdcoutpost.xyz) */
+    .site-header {
+      position: sticky; top: 0; z-index: 10;
+      background: rgb(30 26 74 / 0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+    }
+    .site-header .wrap { display: flex; align-items: center; justify-content: space-between; height: 4rem; gap: 1rem; }
+    .crumbs { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+    .brand {
+      display: flex; align-items: center; gap: 0.6rem; white-space: nowrap;
+      color: var(--ink); text-decoration: none;
+      font-family: var(--display); font-weight: 700; font-size: 1.2rem; letter-spacing: -0.01em;
+    }
+    .brand svg { width: 1.6rem; height: 1.6rem; flex: none; }
+    .crumbs .sep { color: var(--line); font-size: 1.3rem; }
+    .crumbs .here { color: var(--mist); font-weight: 600; white-space: nowrap; }
+    .site-nav { display: flex; gap: clamp(1rem, 3vw, 2rem); }
+    .site-nav a { color: var(--mist); text-decoration: none; font-size: 0.95rem; font-weight: 500; white-space: nowrap; padding: 0.75rem 0; }
+    .site-nav a:hover { color: var(--ink); }
+    @media (max-width: 720px) { .site-nav .wide { display: none; } }
+    @media (max-width: 420px) {
+      .crumbs .sep, .crumbs .here { display: none; }
+    }
+
+    /* Hero */
+    .hero { padding: clamp(3rem, 7vw, 5rem) 0 clamp(3rem, 6vw, 4.5rem); }
+    .hero-grid { display: grid; gap: 2.5rem 4rem; }
+    @media (min-width: 1024px) { .hero-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); align-items: start; } }
+    .hero h1 {
+      font-family: var(--display); font-weight: 750; font-stretch: 82%;
+      font-size: clamp(2.5rem, 6vw, 4.75rem); line-height: 0.98; letter-spacing: -0.028em;
+      margin: 0 0 1.5rem; max-width: 13ch; text-wrap: balance;
+    }
+    .hero .lede { font-size: clamp(1.1rem, 2vw, 1.25rem); color: var(--mist); margin: 0 0 1.75rem; max-width: 34em; }
+    .facts { list-style: none; margin: 0 0 2rem; padding: 0; display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .kind {
+      display: inline-block; font-weight: 600; font-size: 0.8rem;
+      padding: 0.2rem 0.7rem; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap;
+    }
+    .kind-pq { color: var(--night); background: var(--signal); border-color: var(--signal); }
+    .kind-web { color: var(--signal); }
+    .kind-quiet { color: var(--mist); }
+    .hero .actions { margin: 0; }
+
+    .panel { background: var(--dusk); border: 1px solid var(--line); border-radius: 18px; padding: clamp(1.25rem, 3vw, 2rem); }
+    .panel h2 { font-family: var(--display); font-weight: 700; font-stretch: 90%; font-size: 1.35rem; line-height: 1.2; margin: 0 0 0.4rem; }
+    .panel > p { color: var(--mist); font-size: 0.95rem; margin: 0 0 1.25rem; }
+    .payload-bar { display: flex; height: 2.75rem; border-radius: 8px; overflow: hidden; font-size: 0.8rem; font-weight: 600; }
+    .payload-bar span { display: flex; align-items: center; padding: 0 0.75rem; white-space: nowrap; overflow: hidden; color: var(--night); }
+    .seg-kem { flex: 5.2; background: var(--signal); }
+    .seg-iv  { flex: 0.9; background: #C9BCF5; justify-content: center; padding: 0 0.25rem !important; }
+    .seg-msg { flex: 2.6; background: #FFC7D7; }
+    .payload-key { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; margin: 0.9rem 0 0; font-size: 0.875rem; color: var(--mist); }
+    .payload-key dt { color: var(--ink); font-weight: 600; white-space: nowrap; }
+    .payload-key dd { margin: 0; }
+
+    /* Steps: same two-column pattern as the tool catalogue */
+    .steps { background: var(--deep); padding: clamp(1rem, 3vw, 2rem) 0 clamp(3rem, 7vw, 5rem); }
+    .group { display: grid; gap: 1.5rem 3rem; grid-template-columns: 1fr; padding: 2.5rem 0; border-top: 1px solid var(--line); }
+    .group:first-child { border-top: 0; }
+    @media (min-width: 900px) {
+      .group { grid-template-columns: 17rem minmax(0, 1fr); }
+      .group-head { position: sticky; top: 6rem; align-self: start; }
+    }
+    .step-no {
+      display: inline-grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%;
+      border: 1.5px solid var(--signal); color: var(--signal);
+      font-family: var(--display); font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem;
+    }
+    .group-head h2 { font-family: var(--display); font-weight: 700; font-stretch: 90%; font-size: 1.6rem; line-height: 1.15; letter-spacing: -0.015em; margin: 0 0 0.5rem; }
+    .group-head p { color: var(--mist); margin: 0; font-size: 0.975rem; }
+    .group-body { display: grid; gap: 1.25rem; max-width: 46rem; }
+
+    /* Forms */
+    .field { display: grid; gap: 0.4rem; }
+    .field label, .field .label { font-weight: 600; font-size: 0.95rem; }
+    .field .hint { color: var(--mist); font-size: 0.875rem; margin: 0; }
+    .row-2 { display: grid; gap: 1.25rem; }
+    @media (min-width: 640px) { .row-2 { grid-template-columns: 1fr 1fr; } }
+    input, textarea {
+      width: 100%; font: inherit; font-size: 1rem; color: var(--ink);
+      background: var(--night); border: 1px solid var(--line); border-radius: 8px;
+      padding: 0.75rem 0.9rem; transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    textarea { resize: vertical; min-height: 6rem; }
+    textarea.mono, input.mono { font-family: var(--mono); font-size: 0.85rem; }
+    input::placeholder, textarea::placeholder { color: #8E84BE; }
+    input:focus, textarea:focus { outline: none; border-color: var(--signal); box-shadow: 0 0 0 3px rgb(143 220 255 / 0.2); }
+    input[aria-invalid="true"], textarea[aria-invalid="true"] { border-color: var(--flare); }
+
+    details.settings { border: 1px solid var(--line); border-radius: 8px; padding: 0 0.9rem; }
+    details.settings summary { cursor: pointer; padding: 0.75rem 0; color: var(--mist); font-weight: 600; font-size: 0.95rem; }
+    details.settings[open] { padding-bottom: 0.9rem; }
+
+    /* Buttons (match main site) */
+    .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+      padding: 0.7rem 1.2rem; border-radius: 8px; border: 1px solid transparent;
+      font: inherit; font-weight: 600; font-size: 0.975rem; text-decoration: none; white-space: nowrap; cursor: pointer;
+      transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .btn-primary { background: var(--signal); color: var(--night); }
+    .btn-primary:hover { background: var(--ink); color: var(--night); }
+    .btn-ghost { background: transparent; border-color: var(--line); color: var(--ink); }
+    .btn-ghost:hover { border-color: var(--signal); color: var(--ink); }
+    .btn-small { padding: 0.35rem 0.75rem; font-size: 0.85rem; }
+    .btn[disabled] { opacity: 0.55; cursor: progress; }
+    .btn svg { width: 1rem; height: 1rem; fill: currentColor; flex: none; }
+
+    /* Key / output boxes */
+    .out { display: grid; gap: 0.4rem; }
+    .out-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+    .out-head .label { font-weight: 600; font-size: 0.95rem; }
+    .out-head .actions { gap: 0.4rem; }
+    .box {
+      background: var(--night); border: 1px solid var(--line); border-radius: 8px;
+      padding: 0.75rem 0.9rem; min-height: 3.25rem;
+      font-family: var(--mono); font-size: 0.8rem; line-height: 1.5; word-break: break-all;
+      max-height: 9rem; overflow-y: auto; color: var(--ink);
+    }
+    .box:empty::before { content: attr(data-empty); color: #8E84BE; font-family: var(--body); font-size: 0.9rem; }
+    .box.masked:not(:empty) { filter: blur(5px); user-select: none; }
+    .box.message { font-family: var(--body); font-size: 1rem; word-break: normal; white-space: pre-wrap; max-height: none; min-height: 5rem; }
+
+    /* Notices */
+    .notice { margin: 0; padding: 0.8rem 1rem; border-radius: 8px; border: 1px solid var(--line); background: var(--dusk); font-size: 0.95rem; }
+    .notice strong { font-weight: 600; }
+    .notice[data-tone="error"] { border-color: var(--flare); background: rgb(255 158 187 / 0.08); }
+    .notice[data-tone="ok"] { border-color: var(--ok); background: rgb(110 231 183 / 0.07); }
+    .notice[data-tone="warn"] { border-left: 3px solid var(--flare); }
+    .notice .hash { font-family: var(--mono); font-size: 0.8rem; word-break: break-all; }
+    .notice .actions { margin-top: 0.6rem; }
+
+    .wallet { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.75rem 0.9rem; border: 1px solid var(--line); border-radius: 8px; }
+    .wallet-state { display: flex; align-items: center; gap: 0.6rem; font-size: 0.95rem; }
+    .wallet-state .dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--line); flex: none; }
+    .wallet-state.on .dot { background: var(--ok); box-shadow: 0 0 0 4px rgb(110 231 183 / 0.18); }
+    .wallet-state code { font-family: var(--mono); font-size: 0.85rem; }
+
+    /* Things to know */
+    .know { padding: clamp(3rem, 7vw, 5rem) 0; }
+    .know h2 { font-family: var(--display); font-weight: 700; font-stretch: 90%; font-size: clamp(2rem, 4vw, 2.75rem); letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 2rem; }
+    .know-grid { display: grid; gap: 1.5rem 3rem; }
+    @media (min-width: 800px) { .know-grid { grid-template-columns: 1fr 1fr; } }
+    .know h3 { font-family: var(--display); font-weight: 650; font-size: 1.2rem; margin: 0 0 0.35rem; }
+    .know p, .know li { color: var(--mist); margin: 0; }
+    .know ol { margin: 0.5rem 0 0; padding-left: 1.25rem; display: grid; gap: 0.3rem; }
+
+    /* Contact + footer (match main site) */
+    .contact { padding: clamp(3rem, 7vw, 5rem) 0; border-top: 1px solid var(--line); }
+    .contact .wrap { display: grid; gap: 2rem 4rem; }
+    @media (min-width: 900px) { .contact .wrap { grid-template-columns: 1fr 1fr; align-items: start; } }
+    .contact h2 { font-family: var(--display); font-weight: 700; font-stretch: 90%; font-size: clamp(2rem, 4vw, 2.75rem); letter-spacing: -0.02em; line-height: 1.1; margin: 0 0 1rem; }
+    .contact p { color: var(--mist); margin: 0; max-width: 30em; }
+    .channels { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+    .channels a { display: flex; align-items: center; gap: 1rem; padding: 1rem 0.25rem; border-bottom: 1px solid var(--line); color: var(--ink); text-decoration: none; }
+    .channels a:hover { color: var(--signal); }
+    .channels svg { width: 1.4rem; height: 1.4rem; fill: currentColor; flex: none; }
+    .channels .name { font-weight: 600; min-width: 5.5rem; }
+    .channels .handle { color: var(--mist); }
+    .site-footer { border-top: 1px solid var(--line); padding: 2rem 0; color: var(--mist); font-size: 0.9rem; }
+    .site-footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
+    .site-footer p { margin: 0; }
+    .site-footer a { display: inline-block; padding: 0.6rem 0; }
+
+    /* ---- Calculator-specific ---- */
+    .hint { color: var(--mist); font-size: 0.875rem; margin: 0; }
+    .formula { display: grid; gap: 0.6rem; margin: 0; }
+    .formula .term { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.7rem 0.9rem; border-radius: 8px; background: var(--night); border: 1px solid var(--line); font-size: 0.95rem; }
+    .formula .op { text-align: center; color: var(--mist); font-family: var(--display); font-weight: 700; font-size: 1.1rem; line-height: 1; }
+    .formula .term.result { background: var(--signal); border-color: var(--signal); color: var(--night); font-weight: 700; }
+    .formula small { color: var(--mist); font-size: 0.8rem; }
+    .formula .result small { color: var(--night); opacity: 0.75; }
+
+    .presets { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+    .chip {
+      font: inherit; font-size: 0.875rem; font-weight: 500; color: var(--ink); cursor: pointer;
+      background: var(--dusk); border: 1px solid var(--line); border-radius: 999px; padding: 0.4rem 0.85rem;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+    .chip:hover { border-color: var(--signal); }
+    .chip[aria-pressed="true"] { border-color: var(--signal); background: #332C75; }
+    input[type="date"] { color-scheme: dark; }
+    select {
+      width: 100%; font: inherit; font-size: 1rem; color: var(--ink); color-scheme: dark; cursor: pointer;
+      background-color: var(--night); border: 1px solid var(--line); border-radius: 8px;
+      padding: 0.75rem 2.5rem 0.75rem 0.9rem; appearance: none; -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%238FDCFF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 0.85rem center; background-size: 1rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    select:hover { border-color: var(--signal); }
+    select:focus { outline: none; border-color: var(--signal); box-shadow: 0 0 0 3px rgb(143 220 255 / 0.2); }
+    select option, select optgroup { background: var(--night); color: var(--ink); }
+    .check { display: flex; align-items: center; gap: 0.6rem; font-size: 0.95rem; color: var(--mist); }
+    .check input { width: 1.1rem; height: 1.1rem; accent-color: var(--signal); }
+
+    .progress { display: flex; align-items: center; gap: 0.75rem; }
+    .spinner { width: 1.1rem; height: 1.1rem; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--signal); animation: spin 0.8s linear infinite; flex: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }
+
+    .result-card { background: var(--dusk); border: 1px solid var(--line); border-radius: 18px; padding: clamp(1.25rem, 3vw, 2rem); display: grid; gap: 1.25rem; }
+    .result-card .label { color: var(--mist); font-weight: 600; margin: 0; }
+    .big {
+      font-family: var(--display); font-weight: 750; font-stretch: 85%; letter-spacing: -0.025em;
+      font-size: clamp(2.5rem, 7vw, 4rem); line-height: 1; margin: 0.25rem 0 0; word-break: break-word;
+    }
+    .big .unit { font-size: 0.45em; color: var(--mist); font-weight: 650; margin-left: 0.3em; letter-spacing: 0; }
+    .big.negative { color: var(--flare); }
+    .period { color: var(--mist); font-size: 0.95rem; margin: 0.5rem 0 0; }
+    table.breakdown { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    .breakdown th, .breakdown td { padding: 0.6rem 0; border-bottom: 1px solid var(--line); text-align: left; font-weight: 400; vertical-align: top; }
+    .breakdown th { color: var(--mist); padding-right: 1rem; }
+    .breakdown td { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .breakdown tr.total th, .breakdown tr.total td { color: var(--ink); font-weight: 700; border-bottom: 0; }
+    .breakdown .sub { display: block; color: var(--mist); font-size: 0.8rem; }
+    details.log summary { cursor: pointer; color: var(--mist); font-weight: 600; padding: 0.25rem 0; }
+    #output {
+      margin-top: 0.75rem; white-space: pre-wrap; word-break: break-all;
+      background: var(--night); border: 1px solid var(--line); border-radius: 8px;
+      padding: 0.75rem 0.9rem; max-height: 24rem; overflow-y: auto;
+      font-family: var(--mono); font-size: 0.78rem; line-height: 1.55; color: var(--mist);
+    }
+    .attrib { color: var(--mist); font-size: 0.85rem; margin: 0; }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#calculate">Skip to the calculator</a>
+
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-beacon" viewBox="0 0 32 32">
+      <path d="M11 29 L16 11 L21 29 M12.6 23 H19.4 M13.8 18 H18.2" fill="none" stroke="#C3B8EA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="16" cy="7.5" r="3" fill="#FF9EBB"/>
+      <path d="M9.5 4.5 A9 9 0 0 0 9.5 10.5 M22.5 4.5 A9 9 0 0 1 22.5 10.5" fill="none" stroke="#FF9EBB" stroke-width="1.75" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></symbol>
+    <symbol id="i-telegram" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></symbol>
+    <symbol id="i-discord" viewBox="0 0 24 24"><path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M14.234 10.162 22.977 0h-2.072l-7.591 8.824L7.251 0H.258l9.168 13.343L.258 24H2.33l8.016-9.318L16.749 24h6.993zm-2.837 3.299-.929-1.329L3.076 1.56h3.182l5.965 8.532.929 1.329 7.754 11.09h-3.182z"/></symbol>
+  </svg>
+
+  <header class="site-header">
+    <div class="wrap">
+      <div class="crumbs">
+        <a class="brand" href="/"><svg aria-hidden="true"><use href="#i-beacon"/></svg>XDC Outpost</a>
+        <span class="sep" aria-hidden="true">/</span>
+        <span class="here">Rewards Calculator</span>
+      </div>
+      <nav class="site-nav" aria-label="Main">
+        <a href="/#tools">All tools</a>
+        <a class="wide" href="#know">How it works</a>
+        <a class="wide" href="https://github.com/s4njk4n/XDC_Masternode_Rewards_Calculator" target="_blank" rel="noopener">Source code</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="title">
+      <div class="wrap hero-grid">
+        <div>
+          <h1 id="title">Masternode epoch rewards calculator</h1>
+          <p class="lede">See how much an XDC masternode owner address earned in epoch rewards over any period, for tax time, reporting or just checking your node is paying out.</p>
+          <ul class="facts" aria-label="Key facts">
+            <li><span class="kind kind-web">Web app</span></li>
+            <li><span class="kind kind-quiet">XDC mainnet</span></li>
+            <li><span class="kind kind-quiet">Runs in your browser</span></li>
+            <li><span class="kind kind-quiet">Free Etherscan API key needed</span></li>
+          </ul>
+          <div class="actions">
+            <a class="btn btn-primary" href="#calculate">Calculate rewards</a>
+            <a class="btn btn-ghost" href="#know">How it works</a>
+          </div>
+        </div>
+
+        <aside class="panel" aria-labelledby="formula-title">
+          <h2 id="formula-title">How rewards are worked out</h2>
+          <p>Epoch rewards aren’t ordinary transactions, so they’re inferred: whatever your balance grew by that your transactions don’t explain.</p>
+          <div class="formula">
+            <div class="term"><span>Balance change</span><small>end − start</small></div>
+            <div class="op" aria-label="minus">−</div>
+            <div class="term"><span>Transaction activity</span><small>in − out − gas fees</small></div>
+            <div class="op" aria-label="equals">=</div>
+            <div class="term result"><span>Epoch rewards</span><small>inferred</small></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <div class="steps">
+      <div class="wrap">
+        <section class="group" id="calculate" aria-labelledby="calc-title">
+          <div class="group-head">
+            <h2 id="calc-title">Calculate</h2>
+            <p>Enter the owner address, pick a period and add your Etherscan API key. A year usually takes under a minute.</p>
+          </div>
+
+          <form class="group-body" id="inputForm" novalidate>
+            <div class="field">
+              <label for="ownerAddr">Masternode owner address</label>
+              <input type="text" id="ownerAddr" class="mono" required placeholder="xdc… or 0x…" autocomplete="off" spellcheck="false">
+            </div>
+
+            <div class="field">
+              <span class="label" id="period-label">Period</span>
+              <ul class="presets" aria-labelledby="period-label">
+                <li><button type="button" class="chip" data-preset="30d">Last 30 days</button></li>
+                <li><button type="button" class="chip" data-preset="lastMonth">Last month</button></li>
+                <li><button type="button" class="chip" data-preset="ytd">This year so far</button></li>
+                <li><button type="button" class="chip" data-preset="lastYear">Last calendar year</button></li>
+                <li><button type="button" class="chip" data-preset="lastFY">Last financial year (Jul–Jun)</button></li>
+              </ul>
+            </div>
+            <div class="row-2">
+              <div class="field">
+                <label for="startDate">Start date</label>
+                <input type="date" id="startDate" required min="2019-06-01">
+              </div>
+              <div class="field">
+                <label for="endDate">End date</label>
+                <input type="date" id="endDate" required min="2019-06-01">
+              </div>
+            </div>
+            <div class="field">
+              <label for="timeZone">Time zone</label>
+              <select id="timeZone"></select>
+              <p class="hint" id="tzHint">The period runs from 00:00 on the start date to 23:59:59 on the end date, in this time zone. Daylight saving is handled automatically.</p>
+            </div>
+
+            <div class="field">
+              <label for="apiKey">Etherscan API key</label>
+              <input type="text" id="apiKey" class="mono" required autocomplete="off" spellcheck="false" placeholder="Your free API key">
+              <p class="hint">Used to list the address’s transactions. <a href="https://etherscan.io/myapikey" target="_blank" rel="noopener">Get a free key from Etherscan</a>; one key covers XDC.</p>
+            </div>
+
+            <details class="settings">
+              <summary>Network settings</summary>
+              <div class="field">
+                <label for="rpcUrl">XDC RPC endpoint</label>
+                <input type="text" id="rpcUrl" class="mono" placeholder="https://rpc.ankr.com/xdc" spellcheck="false">
+                <p class="hint">Leave blank to use https://rpc.ankr.com/xdc. If you use your own, it must be an archive node, because the calculator reads balances at past blocks.</p>
+              </div>
+            </details>
+
+            <label class="check"><input type="checkbox" id="remember"> Remember the address, API key, time zone and RPC on this device</label>
+
+            <div class="actions">
+              <button type="submit" class="btn btn-primary" id="calcBtn">Calculate epoch rewards</button>
+            </div>
+
+            <div class="notice progress" id="progress" role="status" hidden><span class="spinner" aria-hidden="true"></span><span id="progressText">Starting…</span></div>
+            <p class="notice" id="formStatus" role="alert" hidden></p>
+          </form>
+        </section>
+
+        <section class="group" id="results" aria-labelledby="results-title" hidden>
+          <div class="group-head">
+            <h2 id="results-title">Results</h2>
+            <p>Every figure is shown so you can check the working. Open the log for each block and transaction used.</p>
+          </div>
+          <div class="group-body">
+            <div class="result-card">
+              <div>
+                <p class="label">Inferred epoch rewards</p>
+                <p class="big" id="rewardBig">0<span class="unit">XDC</span></p>
+                <p class="period" id="rewardPeriod"></p>
+              </div>
+              <table class="breakdown" aria-label="Calculation breakdown">
+                <tbody id="breakdownBody"></tbody>
+              </table>
+              <div class="actions">
+                <button type="button" class="btn btn-ghost btn-small" id="copySummaryBtn" onclick="copySummary(this)">Copy summary</button>
+                <button type="button" class="btn btn-ghost btn-small" onclick="downloadCsv()">Download CSV</button>
+                <button type="button" class="btn btn-ghost btn-small" onclick="downloadLog()">Download log</button>
+              </div>
+              <p class="notice" id="resultNote" data-tone="warn" hidden></p>
+            </div>
+            <details class="log" id="logDetails">
+              <summary>Calculation log</summary>
+              <div id="output" aria-live="off"></div>
+            </details>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <section class="know" id="know" aria-labelledby="know-title">
+      <div class="wrap">
+        <h2 id="know-title">Things to know</h2>
+        <div class="know-grid">
+          <div>
+            <h3>It’s inferred, not read directly</h3>
+            <p>The calculator compares your balance at the start and end of the period and removes everything your transactions explain. Whatever is left is counted as epoch rewards. Any other unexplained change in balance would be counted too.</p>
+          </div>
+          <div>
+            <h3>What’s included</h3>
+            <p>Native XDC only: normal and internal transfers in and out, and gas fees you paid. Failed transactions count their gas fee but not their value, since no XDC moved. Tokens aren’t included.</p>
+          </div>
+          <div>
+            <h3>Dates follow your time zone</h3>
+            <p>The time zone starts as your device’s. A financial year in Sydney runs from midnight Sydney time, not midnight UTC, and daylight saving changes during the year are allowed for. Choose UTC to match other tools that use it.</p>
+          </div>
+          <div>
+            <h3>Your data stays with you</h3>
+            <p>The page talks directly to the XDC RPC and Etherscan from your browser. Nothing goes to XDC Outpost. If you tick “Remember”, details are saved only in this browser.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="contact" id="contact" aria-labelledby="contact-title">
+      <div class="wrap">
+        <div>
+          <h2 id="contact-title">Need help?</h2>
+          <p>A result that looks wrong, a bug to report, or an idea? This tool is in beta, so feedback helps. Message me on whichever platform suits you.</p>
+        </div>
+        <ul class="channels">
+          <li><a href="https://t.me/s4njk4n" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-telegram"/></svg><span class="name">Telegram</span><span class="handle">@s4njk4n</span></a></li>
+          <li><a href="https://discord.com/users/852434672793288724" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-discord"/></svg><span class="name">Discord</span><span class="handle">@s4njk4n</span></a></li>
+          <li><a href="https://x.com/s4njk4n" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-x"/></svg><span class="name">X</span><span class="handle">@s4njk4n</span></a></li>
+          <li><a href="https://github.com/s4njk4n/XDC_Masternode_Rewards_Calculator" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#i-github"/></svg><span class="name">GitHub</span><span class="handle">Rewards Calculator</span></a></li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>© <span id="year">2026</span> XDC Outpost, by <a href="https://github.com/s4njk4n?tab=repositories" target="_blank" rel="noopener">s4njk4n</a>. Transaction data powered by <a href="https://etherscan.io/apis" target="_blank" rel="noopener">Etherscan.io APIs</a>.</p>
+      <p><a href="/">More XDC tools</a></p>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById('year').textContent = new Date().getFullYear();
+    const $ = id => document.getElementById(id);
+    const WEI = 1000000000000000000n;
+    const DEFAULT_RPC = 'https://rpc.ankr.com/xdc';
+    const STORE_KEY = 'xdc-rewards-calculator';
+
+    // ===== Helpers =====
+    function convertAddress(addr) {
+      return /^xdc/i.test(addr) ? '0x' + addr.slice(3) : addr;
+    }
+    // Real calendar date in YYYY-MM-DD form (rejects 2024-02-31, 2024-13-01, etc.)
+    function validateDate(dateStr) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+      const d = new Date(dateStr + 'T00:00:00Z');
+      return !isNaN(d) && d.toISOString().slice(0, 10) === dateStr;
+    }
+    function hexToDec(hex) {
+      return hex.startsWith('0x') ? BigInt(hex).toString() : hex;
+    }
+    // Exact wei → XDC string. Handles negative values correctly.
+    function weiToXdc(wei) {
+      let v = BigInt(wei);
+      const neg = v < 0n;
+      if (neg) v = -v;
+      const integerPart = (v / WEI).toString();
+      const fractionalPart = (v % WEI).toString().padStart(18, '0').replace(/0+$/, '');
+      return (neg ? '-' : '') + (fractionalPart ? `${integerPart}.${fractionalPart}` : integerPart);
+    }
+    // Readable XDC for the summary: thousands separators, up to 4 decimals.
+    function prettyXdc(wei, decimals = 4) {
+      const exact = weiToXdc(wei);
+      const neg = exact.startsWith('-');
+      const [i, f = ''] = exact.replace('-', '').split('.');
+      let frac = f.slice(0, decimals).replace(/0+$/, '');
+      const int = BigInt(i).toLocaleString('en-US');
+      return (neg ? '−' : '') + int + (frac ? '.' + frac : '');
+    }
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function zonedStamp(ts, tz) {
+      const v = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(ts * 1000)).map(p => [p.type, p.value]));
+      return `${v.year}-${v.month}-${v.day} ${v.hour}:${v.minute}:${v.second} ${tz === 'UTC' ? 'UTC' : offsetLabel(tz, ts * 1000)}`;
+    }
+    function isoUtc(ts) { return new Date(ts * 1000).toISOString().replace('T', ' ').replace('.000Z', ' UTC'); }
+
+    // ===== Time zones =====
+    const DEVICE_TZ = (() => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; } catch (_) { return 'UTC'; } })();
+    const FALLBACK_TZS = ['UTC', 'Australia/Sydney', 'Australia/Melbourne', 'Australia/Brisbane', 'Australia/Adelaide', 'Australia/Perth', 'Pacific/Auckland', 'Asia/Singapore', 'Asia/Kolkata', 'Asia/Dubai', 'Asia/Tokyo', 'Asia/Hong_Kong', 'Europe/London', 'Europe/Berlin', 'Europe/Paris', 'America/New_York', 'America/Chicago', 'America/Los_Angeles'];
+    function isValidTz(tz) {
+      try { new Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; } catch (_) { return false; }
+    }
+    // Milliseconds the zone is ahead of UTC at a given instant.
+    function tzOffsetMs(tz, instantMs) {
+      const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(instantMs));
+      const v = Object.fromEntries(parts.map(p => [p.type, p.value]));
+      const asUtc = Date.UTC(+v.year, +v.month - 1, +v.day, +v.hour % 24, +v.minute, +v.second);
+      return asUtc - Math.floor(instantMs / 1000) * 1000;
+    }
+    // UTC instant (ms) of 00:00 local time on dateStr in tz.
+    function zonedMidnightUtc(dateStr, tz) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const wall = Date.UTC(y, m - 1, d);
+      const first = wall - tzOffsetMs(tz, wall);
+      const second = wall - tzOffsetMs(tz, first);
+      // Around a daylight-saving change the two guesses differ. Keep the earliest one that
+      // still falls on dateStr locally (handles zones where midnight is skipped or repeated).
+      const sameDay = t => todayIn(tz, t) === dateStr;
+      const ok = [first, second].filter(sameDay).sort((a, b) => a - b);
+      return ok.length ? ok[0] : second;
+    }
+    function nextDay(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10);
+    }
+    function offsetLabel(tz, instantMs = Date.now()) {
+      const mins = Math.round(tzOffsetMs(tz, instantMs) / 60000);
+      const sign = mins < 0 ? '−' : '+', a = Math.abs(mins);
+      return `UTC${sign}${String(Math.floor(a / 60)).padStart(2, '0')}:${String(a % 60).padStart(2, '0')}`;
+    }
+    function tzCityLabel(tz) { return tz === 'UTC' ? 'Coordinated Universal Time' : tz.split('/').slice(1).join(', ').replace(/_/g, ' ') || tz; }
+    function todayIn(tz, instantMs = Date.now()) {
+      const v = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(instantMs)).map(p => [p.type, p.value]));
+      return `${v.year}-${v.month}-${v.day}`;
+    }
+    function currentTz() {
+      const v = $('timeZone').value.trim();
+      if (!isValidTz(v)) return null;
+      return new Intl.DateTimeFormat('en-US', { timeZone: v }).resolvedOptions().timeZone; // canonical spelling
+    }
+    function fillTimeZones() {
+      let zones = FALLBACK_TZS;
+      try { if (Intl.supportedValuesOf) zones = Intl.supportedValuesOf('timeZone'); } catch (_) {}
+      zones = zones.filter(z => z !== 'UTC' && z.includes('/'));
+      if (DEVICE_TZ !== 'UTC' && !zones.includes(DEVICE_TZ)) zones.push(DEVICE_TZ);
+      const now = Date.now();
+      const opt = (z, label) => `<option value="${escapeHtml(z)}">${escapeHtml(label)}</option>`;
+      const groups = {};
+      for (const z of zones) (groups[z.split('/')[0]] = groups[z.split('/')[0]] || []).push(z);
+      let html = '<optgroup label="Suggested">';
+      if (DEVICE_TZ !== 'UTC') html += opt(DEVICE_TZ, `${tzCityLabel(DEVICE_TZ)} (${offsetLabel(DEVICE_TZ, now)}), your device`);
+      html += opt('UTC', 'UTC (UTC+00:00)') + '</optgroup>';
+      for (const region of Object.keys(groups).sort()) {
+        html += `<optgroup label="${escapeHtml(region)}">` +
+          groups[region]
+            .map(z => ({ z, label: `${tzCityLabel(z)} (${offsetLabel(z, now)})` }))
+            .sort((a, b) => a.label.localeCompare(b.label))
+            .map(o => opt(o.z, o.label)).join('') +
+          '</optgroup>';
+      }
+      $('timeZone').innerHTML = html;
+    }
+    function updateTzHint() {
+      const tz = currentTz();
+      $('tzHint').textContent = `The period runs from 00:00 on the start date to 23:59:59 on the end date, ${tz === 'UTC' ? 'in UTC' : tzCityLabel(tz) + ' time'}. Daylight saving is handled automatically.`;
+    }
+
+    let logLines = [];
+    function log(line) {
+      logLines.push(line);
+      const out = $('output');
+      out.textContent += line + '\n';
+    }
+    function progress(text) {
+      $('progress').hidden = !text;
+      $('progressText').textContent = text || '';
+    }
+    function showError(msg, fieldId) {
+      const el = $('formStatus');
+      el.dataset.tone = 'error';
+      el.innerHTML = '<strong>Couldn’t calculate.</strong> ' + escapeHtml(msg);
+      el.hidden = false;
+      if (fieldId) { $(fieldId).setAttribute('aria-invalid', 'true'); $(fieldId).focus(); }
+    }
+    function friendlyRpcError(msg) {
+      if (/missing trie node|header not found|state.*not available|pruned/i.test(msg))
+        return 'The RPC endpoint doesn’t keep historical balances. Use an archive node under Network settings. ';
+      if (/Failed to fetch|NetworkError|Load failed/i.test(msg))
+        return 'Couldn’t reach the RPC endpoint. Check your connection, or try another RPC under Network settings. ';
+      return '';
+    }
+
+    // ===== Network calls (unchanged behaviour) =====
+    async function rpcCall(url, method, params) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 })
+        });
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
+        }
+        const data = await response.json();
+        if (data.error) throw new Error(`RPC Error: ${data.error.message} (code: ${data.error.code})`);
+        return data.result;
+      } catch (e) {
+        console.error('RPC Call error:', e);
+        throw new Error(`${friendlyRpcError(e.message)}RPC call to ${method} failed: ${e.message}`);
+      }
+    }
+
+    let lastEtherscanCall = 0;
+    async function etherscanCall(params, apiKey) {
+      // Free Etherscan keys allow 3 calls per second.
+      const wait = 400 - (Date.now() - lastEtherscanCall);
+      if (wait > 0) await sleep(wait);
+      lastEtherscanCall = Date.now();
+      const url = `https://api.etherscan.io/v2/api?${params}&apikey=${encodeURIComponent(apiKey)}&chainid=50`;
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`HTTP error! Status: ${response.status}, Body: ${errorText}`);
+        }
+        const data = await response.json();
+        if (data.status === '1') return data.result;
+        if (data.status === '0' && (data.message === 'No transactions found' || (data.message === 'NOTOK' && data.result === 'No transactions found'))) return [];
+        const detail = typeof data.result === 'string' ? data.result : (data.message || 'Unknown error');
+        if (/invalid api key|missing\/invalid api key/i.test(detail)) throw new Error('Etherscan rejected the API key. Check you copied all of it.');
+        throw new Error(`Etherscan Error: ${detail}`);
+      } catch (e) {
+        console.error('Etherscan Call error:', e);
+        throw new Error(/Etherscan/.test(e.message) ? e.message : `Etherscan call failed: ${e.message}`);
+      }
+    }
+
+    // ===== Block search (same binary search as before) =====
+    async function findBlock(rpcUrl, targetTimestamp, latestBlock, mode, label) {
+      let low = 0;
+      let high = parseInt(latestBlock, 16);
+      let step = 0;
+      const total = Math.ceil(Math.log2(high + 1));
+      log(`Initiating binary search for ${mode === 'ge' ? 'first block >=' : 'last block <='} ${targetTimestamp}: low=${low}, high=${high}`);
+      while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        const blockHex = '0x' + mid.toString(16);
+        progress(`${label} (step ${++step} of about ${total})…`);
+        const block = await rpcCall(rpcUrl, 'eth_getBlockByNumber', [blockHex, false]);
+        const blockTimestamp = parseInt(block.timestamp, 16);
+        log(`Block ${mid} timestamp: ${blockTimestamp} (${new Date(blockTimestamp * 1000).toISOString()})`);
+        const goRight = mode === 'ge' ? blockTimestamp < targetTimestamp : blockTimestamp <= targetTimestamp;
+        if (goRight) low = mid + 1; else high = mid - 1;
+      }
+      const result = mode === 'ge' ? low : high;
+      log(`Binary search completed. ${mode === 'ge' ? 'First block >=' : 'Last block <='} timestamp: ${result}`);
+      return result;
+    }
+
+    // Fetch every tx in a block range. Etherscan returns at most 10,000 results per
+    // query, so long histories are fetched in block windows instead of pages.
+    async function fetchAllTxs(action, address, fromBlock, toBlock, apiKey, label) {
+      const LIMIT = 10000;
+      const all = [];
+      let cursor = fromBlock;
+      for (let round = 1; ; round++) {
+        progress(`${label}${round > 1 ? ` (batch ${round})` : ''}…`);
+        const params = `module=account&action=${action}&address=${address}&startblock=${cursor}&endblock=${toBlock}&page=1&offset=${LIMIT}&sort=asc`;
+        const batch = await etherscanCall(params, apiKey);
+        if (!batch || batch.length === 0) break;
+        if (batch.length < LIMIT) { all.push(...batch); break; }
+        // Full batch: keep everything before the last block, re-fetch from that block.
+        const lastBlock = parseInt(batch[batch.length - 1].blockNumber, 10);
+        const complete = batch.filter(tx => parseInt(tx.blockNumber, 10) < lastBlock);
+        if (complete.length === 0) throw new Error(`More than ${LIMIT} ${action} entries in block ${lastBlock}; can’t page through them.`);
+        all.push(...complete);
+        cursor = lastBlock;
+      }
+      return all;
+    }
+
+    // ===== Main calculation =====
+    let lastResult = null;
+
+    async function calculateRewards(event) {
+      event.preventDefault();
+      ['ownerAddr', 'startDate', 'endDate', 'apiKey', 'timeZone'].forEach(id => $(id).removeAttribute('aria-invalid'));
+      $('formStatus').hidden = true;
+
+      const rpcUrl = $('rpcUrl').value.trim() || DEFAULT_RPC;
+      const startDate = $('startDate').value;
+      const endDate = $('endDate').value;
+      let ownerAddr = convertAddress($('ownerAddr').value.trim()).toLowerCase();
+      const apiKey = $('apiKey').value.trim();
+
+      if (!/^0x[a-f0-9]{40}$/.test(ownerAddr)) return showError('Enter a valid owner address, starting with xdc or 0x and followed by 40 characters.', 'ownerAddr');
+      if (!validateDate(startDate)) return showError('Choose a start date.', 'startDate');
+      if (!validateDate(endDate)) return showError('Choose an end date.', 'endDate');
+      const timeZone = currentTz();
+      if (!timeZone) return showError('Choose a time zone.', 'timeZone');
+      if (endDate < startDate) return showError('The end date is before the start date.', 'endDate');
+      if (zonedMidnightUtc(startDate, timeZone) > Date.now()) return showError('The start date is in the future.', 'startDate');
+      if (!apiKey) return showError('Add your Etherscan API key. It’s free, see the link under the field.', 'apiKey');
+      saveOrForget();
+
+      $('output').textContent = '';
+      logLines = [];
+      $('results').hidden = true;
+      $('calcBtn').disabled = true;
+      $('calcBtn').textContent = 'Calculating…';
+
+      try {
+        log('Starting calculation...');
+        log(`Using RPC: ${rpcUrl}`);
+        log(`Address: ${ownerAddr}`);
+        log(`Period: ${startDate} to ${endDate}`);
+        log(`Time zone: ${timeZone} (start ${offsetLabel(timeZone, zonedMidnightUtc(startDate, timeZone))}, end ${offsetLabel(timeZone, zonedMidnightUtc(nextDay(endDate), timeZone) - 1)})`);
+
+        // Start = 00:00:00 local on the start date; end = the last second before 00:00 local on the day after the end date.
+        const startTimestamp = Math.floor(zonedMidnightUtc(startDate, timeZone) / 1000);
+        const endTimestamp = Math.floor((zonedMidnightUtc(nextDay(endDate), timeZone) - 1) / 1000);
+        log(`Start Timestamp: ${startTimestamp} (${new Date(startTimestamp * 1000).toISOString()})`);
+        log(`End Timestamp: ${endTimestamp} (${new Date(endTimestamp * 1000).toISOString()})`);
+
+        progress('Connecting to the XDC network…');
+        const latestBlock = await rpcCall(rpcUrl, 'eth_blockNumber', []);
+        log(`Latest block: ${parseInt(latestBlock, 16)} (hex: ${latestBlock})`);
+
+        const firstPeriodBlock = await findBlock(rpcUrl, startTimestamp, latestBlock, 'ge', 'Finding the first block of the period');
+        let startBalanceBlock = firstPeriodBlock - 1;
+        if (startBalanceBlock < 0) startBalanceBlock = 0;
+        const endBlock = await findBlock(rpcUrl, endTimestamp, latestBlock, 'le', 'Finding the last block of the period');
+        if (endBlock < firstPeriodBlock) throw new Error('No blocks were produced in that period.');
+
+        const firstBlock = await rpcCall(rpcUrl, 'eth_getBlockByNumber', ['0x' + firstPeriodBlock.toString(16), false]);
+        const firstTs = parseInt(firstBlock.timestamp, 16);
+        log(`Verified first period block ${firstPeriodBlock} timestamp: ${firstTs} (${new Date(firstTs * 1000).toISOString()})`);
+        const endBlockHex = '0x' + endBlock.toString(16);
+        const endBlockInfo = await rpcCall(rpcUrl, 'eth_getBlockByNumber', [endBlockHex, false]);
+        const endTs = parseInt(endBlockInfo.timestamp, 16);
+        log(`Verified end block ${endBlock} timestamp: ${endTs} (${new Date(endTs * 1000).toISOString()})`);
+
+        progress('Reading balances…');
+        const startBalanceBlockHex = '0x' + startBalanceBlock.toString(16);
+        const startBalance = await rpcCall(rpcUrl, 'eth_getBalance', [ownerAddr, startBalanceBlockHex]);
+        const startBalanceDec = hexToDec(startBalance);
+        log(`Starting balance at block ${startBalanceBlock}: ${startBalanceDec} wei, ${weiToXdc(startBalanceDec)} XDC`);
+        const endBalance = await rpcCall(rpcUrl, 'eth_getBalance', [ownerAddr, endBlockHex]);
+        const endBalanceDec = hexToDec(endBalance);
+        log(`Ending balance at block ${endBlock}: ${endBalanceDec} wei, ${weiToXdc(endBalanceDec)} XDC`);
+
+        let transfersIn = 0n, transfersOut = 0n, totalFees = 0n;
+        let normalCount = 0, internalCount = 0, failedCount = 0;
+
+        log('Fetching normal transactions...');
+        const txs = await fetchAllTxs('txlist', ownerAddr, firstPeriodBlock, endBlock, apiKey, 'Fetching transactions');
+        log(`Received ${txs.length} normal transactions.`);
+        for (const tx of txs) {
+          normalCount++;
+          const valueDec = BigInt(tx.value);
+          const gasUsedDec = BigInt(tx.gasUsed);
+          const gasPriceDec = BigInt(tx.gasPrice);
+          const failed = tx.isError === '1';
+          if (failed) failedCount++;
+          log(`- Hash: ${tx.hash}, From: ${tx.from}, To: ${tx.to}, Value: ${valueDec} wei, Gas Used: ${gasUsedDec}, Gas Price: ${gasPriceDec} wei${failed ? ' [FAILED: value not transferred]' : ''}`);
+          if (!failed && tx.to && tx.to.toLowerCase() === ownerAddr) {
+            transfersIn += valueDec;
+            log(`  Incoming: ${weiToXdc(valueDec)} XDC, Running Total In: ${weiToXdc(transfersIn)}`);
+          }
+          if (tx.from.toLowerCase() === ownerAddr) {
+            if (!failed) transfersOut += valueDec;
+            const fee = gasUsedDec * gasPriceDec;
+            totalFees += fee;
+            log(`  Outgoing: ${failed ? 0 : weiToXdc(valueDec)} XDC, Fee: ${weiToXdc(fee)} XDC, Running Total Out: ${weiToXdc(transfersOut)}, Running Total Fees: ${weiToXdc(totalFees)}`);
+          }
+        }
+
+        log('Fetching internal transactions...');
+        const internalTxs = await fetchAllTxs('txlistinternal', ownerAddr, firstPeriodBlock, endBlock, apiKey, 'Fetching internal transactions');
+        log(`Received ${internalTxs.length} internal transactions.`);
+        for (const tx of internalTxs) {
+          const valueDec = BigInt(tx.value);
+          const failed = tx.isError === '1';
+          log(`- Hash: ${tx.hash}, From: ${tx.from}, To: ${tx.to}, Value: ${valueDec} wei${failed ? ' [FAILED: skipped]' : ''}`);
+          if (failed) continue;
+          internalCount++;
+          if (tx.to && tx.to.toLowerCase() === ownerAddr) {
+            transfersIn += valueDec;
+            log(`  Incoming: ${weiToXdc(valueDec)} XDC, Running Total In: ${weiToXdc(transfersIn)}`);
+          }
+          if (tx.from && tx.from.toLowerCase() === ownerAddr) {
+            transfersOut += valueDec;
+            log(`  Outgoing: ${weiToXdc(valueDec)} XDC, Running Total Out: ${weiToXdc(transfersOut)}`);
+          }
+        }
+
+        const netBalanceChange = BigInt(endBalanceDec) - BigInt(startBalanceDec);
+        const adjustments = transfersIn - transfersOut - totalFees;
+        const rewards = netBalanceChange - adjustments;
+
+        log('');
+        log('Final Results:');
+        log(`Net Balance Change: ${netBalanceChange} wei (${weiToXdc(netBalanceChange)} XDC)`);
+        log(`Total Transfers In: ${transfersIn} wei (${weiToXdc(transfersIn)} XDC)`);
+        log(`Total Transfers Out: ${transfersOut} wei (${weiToXdc(transfersOut)} XDC)`);
+        log(`Total Fees: ${totalFees} wei (${weiToXdc(totalFees)} XDC)`);
+        log(`Adjustments (In - Out - Fees): ${adjustments} wei (${weiToXdc(adjustments)} XDC)`);
+        log(`Inferred Masternode Epoch Rewards from ${startDate} to ${endDate}: ${weiToXdc(rewards)} XDC`);
+        log('Calculation complete.');
+
+        lastResult = {
+          address: ownerAddr, startDate, endDate, rpcUrl, timeZone, startTimestamp, endTimestamp,
+          firstPeriodBlock, endBlock, firstTs, endTs,
+          startBalance: BigInt(startBalanceDec), endBalance: BigInt(endBalanceDec),
+          netBalanceChange, transfersIn, transfersOut, totalFees, adjustments, rewards,
+          normalCount, internalCount, failedCount
+        };
+        renderResults(lastResult);
+      } catch (error) {
+        log(`\nError: ${error.message}`);
+        console.error(error);
+        showError(error.message);
+        if (logLines.length > 5) { $('results').hidden = false; $('logDetails').open = true; $('rewardBig').innerHTML = '–'; $('breakdownBody').innerHTML = ''; $('rewardPeriod').textContent = 'The calculation stopped. The log shows how far it got.'; $('resultNote').hidden = true; }
+      } finally {
+        progress('');
+        $('calcBtn').disabled = false;
+        $('calcBtn').textContent = 'Calculate epoch rewards';
+        $('output').scrollTop = $('output').scrollHeight;
+      }
+    }
+
+    function renderResults(r) {
+      const big = $('rewardBig');
+      big.innerHTML = escapeHtml(prettyXdc(r.rewards)) + '<span class="unit">XDC</span>';
+      big.classList.toggle('negative', r.rewards < 0n);
+      $('rewardPeriod').textContent = `xdc${r.address.slice(2, 8)}…${r.address.slice(-4)}, ${r.startDate} to ${r.endDate}, ${r.timeZone === 'UTC' ? 'UTC' : `${tzCityLabel(r.timeZone)} time (${r.timeZone})`}. Blocks ${r.firstPeriodBlock.toLocaleString('en-US')} to ${r.endBlock.toLocaleString('en-US')}.`;
+      const row = (label, wei, sub, cls) => `<tr${cls ? ` class="${cls}"` : ''}><th scope="row">${label}${sub ? `<span class="sub">${sub}</span>` : ''}</th><td title="${weiToXdc(wei)} XDC">${prettyXdc(wei)} XDC</td></tr>`;
+      $('breakdownBody').innerHTML = [
+        row('Balance at start', r.startBalance, zonedStamp(r.firstTs, r.timeZone)),
+        row('Balance at end', r.endBalance, zonedStamp(r.endTs, r.timeZone)),
+        row('Balance change', r.netBalanceChange),
+        row('Transfers in', r.transfersIn, `${r.normalCount} transactions, ${r.internalCount} internal transfers`),
+        row('Transfers out', -r.transfersOut),
+        row('Gas fees paid', -r.totalFees, r.failedCount ? `includes ${r.failedCount} failed transaction${r.failedCount > 1 ? 's' : ''}` : ''),
+        row('Inferred epoch rewards', r.rewards, 'balance change − (in − out − fees)', 'total')
+      ].join('');
+      const note = $('resultNote');
+      if (r.rewards < 0n) {
+        note.innerHTML = '<strong>The result is negative.</strong> Something reduced the balance that the transaction list doesn’t explain. Check the log, and that the RPC is an archive node.';
+        note.hidden = false;
+      } else if (r.rewards === 0n) {
+        note.innerHTML = 'No epoch rewards in this period. Check the address is the masternode <em>owner</em> address, the one that staked, not the node’s coinbase.';
+        note.hidden = false;
+      } else note.hidden = true;
+      $('results').hidden = false;
+      $('logDetails').open = false;
+      $('results').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    }
+
+    // ===== Exports =====
+    function summaryText(r) {
+      return [
+        'XDC masternode epoch rewards (inferred)',
+        `Address: xdc${r.address.slice(2)}`,
+        `Period: ${r.startDate} 00:00 to ${r.endDate} 23:59:59, ${r.timeZone} time`,
+        `Blocks: ${r.firstPeriodBlock} (${zonedStamp(r.firstTs, r.timeZone)}) to ${r.endBlock} (${zonedStamp(r.endTs, r.timeZone)})`,
+        `Balance at start: ${weiToXdc(r.startBalance)} XDC`,
+        `Balance at end: ${weiToXdc(r.endBalance)} XDC`,
+        `Transfers in: ${weiToXdc(r.transfersIn)} XDC`,
+        `Transfers out: ${weiToXdc(r.transfersOut)} XDC`,
+        `Gas fees: ${weiToXdc(r.totalFees)} XDC`,
+        `Inferred epoch rewards: ${weiToXdc(r.rewards)} XDC`,
+        'Calculated at https://xdcoutpost.xyz/XDC_Masternode_Rewards_Calculator/'
+      ].join('\n');
+    }
+    function copySummary(btn) {
+      if (!lastResult) return;
+      navigator.clipboard.writeText(summaryText(lastResult)).then(() => {
+        const t = btn.textContent; btn.textContent = 'Copied'; setTimeout(() => { btn.textContent = t; }, 1500);
+      });
+    }
+    function download(name, text, type) {
+      const url = URL.createObjectURL(new Blob([text], { type }));
+      const a = document.createElement('a'); a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    function downloadCsv() {
+      const r = lastResult; if (!r) return;
+      const rows = [
+        ['Item', 'XDC', 'Wei'],
+        ['Address', 'xdc' + r.address.slice(2), ''],
+        ['Time zone', r.timeZone, ''],
+        ['Start date', r.startDate + ' 00:00:00', ''],
+        ['End date', r.endDate + ' 23:59:59', ''],
+        ['Period start (UTC)', new Date(r.startTimestamp * 1000).toISOString(), ''],
+        ['Period end (UTC)', new Date(r.endTimestamp * 1000).toISOString(), ''],
+        ['First block', r.firstPeriodBlock, zonedStamp(r.firstTs, r.timeZone)],
+        ['Last block', r.endBlock, zonedStamp(r.endTs, r.timeZone)],
+        ['Balance at start', weiToXdc(r.startBalance), r.startBalance],
+        ['Balance at end', weiToXdc(r.endBalance), r.endBalance],
+        ['Balance change', weiToXdc(r.netBalanceChange), r.netBalanceChange],
+        ['Transfers in', weiToXdc(r.transfersIn), r.transfersIn],
+        ['Transfers out', weiToXdc(r.transfersOut), r.transfersOut],
+        ['Gas fees', weiToXdc(r.totalFees), r.totalFees],
+        ['Inferred epoch rewards', weiToXdc(r.rewards), r.rewards]
+      ];
+      download(`xdc-epoch-rewards_${r.startDate}_to_${r.endDate}.csv`, rows.map(x => x.map(v => `"${String(v)}"`).join(',')).join('\r\n'), 'text/csv');
+    }
+    function downloadLog() {
+      const r = lastResult;
+      download(`xdc-epoch-rewards-log${r ? `_${r.startDate}_to_${r.endDate}` : ''}.txt`, logLines.join('\n'), 'text/plain');
+    }
+
+    // ===== Date presets =====
+    function ymd(d) { return d.toISOString().slice(0, 10); }
+    function applyPreset(name) {
+      const today = new Date(todayIn(currentTz() || DEVICE_TZ) + 'T00:00:00Z');
+      const Y = today.getUTCFullYear(), M = today.getUTCMonth();
+      let s, e;
+      switch (name) {
+        case '30d': e = today; s = new Date(today); s.setUTCDate(s.getUTCDate() - 29); break;
+        case 'lastMonth': s = new Date(Date.UTC(Y, M - 1, 1)); e = new Date(Date.UTC(Y, M, 0)); break;
+        case 'ytd': s = new Date(Date.UTC(Y, 0, 1)); e = today; break;
+        case 'lastYear': s = new Date(Date.UTC(Y - 1, 0, 1)); e = new Date(Date.UTC(Y - 1, 11, 31)); break;
+        case 'lastFY': { const fyEndYear = M >= 6 ? Y : Y - 1; s = new Date(Date.UTC(fyEndYear - 1, 6, 1)); e = new Date(Date.UTC(fyEndYear, 5, 30)); break; }
+      }
+      $('startDate').value = ymd(s);
+      $('endDate').value = ymd(e);
+      syncPresetButtons(name);
+    }
+    function syncPresetButtons(active) {
+      document.querySelectorAll('.chip[data-preset]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.preset === active)));
+    }
+    document.querySelectorAll('.chip[data-preset]').forEach(b => b.addEventListener('click', () => applyPreset(b.dataset.preset)));
+    ['startDate', 'endDate'].forEach(id => $(id).addEventListener('input', () => syncPresetButtons(null)));
+    function setMaxDates() { const t = todayIn(currentTz() || DEVICE_TZ); $('endDate').max = t; $('startDate').max = t; }
+
+    // ===== Remember on this device (optional) =====
+    function saveOrForget() {
+      try {
+        if ($('remember').checked) {
+          localStorage.setItem(STORE_KEY, JSON.stringify({ ownerAddr: $('ownerAddr').value.trim(), apiKey: $('apiKey').value.trim(), rpcUrl: $('rpcUrl').value.trim(), timeZone: $('timeZone').value.trim() }));
+        } else localStorage.removeItem(STORE_KEY);
+      } catch (_) {}
+    }
+    $('remember').addEventListener('change', saveOrForget);
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORE_KEY) || 'null');
+      if (saved) {
+        $('ownerAddr').value = saved.ownerAddr || '';
+        $('apiKey').value = saved.apiKey || '';
+        $('rpcUrl').value = saved.rpcUrl || '';
+        if (saved.timeZone) window.__savedTz = saved.timeZone;
+        $('remember').checked = true;
+      }
+    } catch (_) {}
+
+    fillTimeZones();
+    $('timeZone').value = DEVICE_TZ;
+    if (window.__savedTz) { $('timeZone').value = window.__savedTz; if ($('timeZone').value !== window.__savedTz) $('timeZone').value = DEVICE_TZ; }
+    updateTzHint();
+    setMaxDates();
+    $('timeZone').addEventListener('change', () => { updateTzHint(); setMaxDates(); });
+
+    $('inputForm').addEventListener('submit', calculateRewards);
+  </script>
+</body>
+</html>
