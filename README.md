@@ -1,84 +1,67 @@
-_In Beta - Let me know if you find specific issues_
-
 # XDC Masternode Epoch Rewards Calculator
 
-Live site is at: https://xdcoutpost.xyz/XDC_Masternode_Rewards_Calculator/?utm_source=github
+See how much an XDC masternode owner address earned in epoch rewards over any period: for tax time, reporting, or just checking your node is paying out.
 
-![XDC Masternode Rewards Checker](XDC_Masternode_Rewards_Checker2.jpg)
+**[Open the calculator →](https://xdcoutpost.xyz/XDC_Masternode_Rewards_Calculator/?utm_source=github)**
 
-This is a simple web tool to figure out the epoch rewards your XDC masternode earned over a specific time period. It looks at your wallet's balance changes and subtracts out any transactions or fees to infer what must have come from masternode epoch rewards on the XDC network.
+Part of [XDC Outpost](https://xdcoutpost.xyz/?utm_source=github-calculator) · Free, runs in your browser · ⭐ Star the repo if it helps you.
 
-I built this because tracking epoch rewards manually is a pain, especially if you're not deep into blockchain.
+![XDC Masternode Epoch Rewards Calculator](XDC_Masternode_Rewards_Checker2.jpg)
 
-## What It Does
+## How it works
 
-The tool calculates "inferred" epoch rewards for a masternode owner address between two dates. "Inferred" means it doesn't directly query epoch rewards from the network; instead, it looks at how your balance changed and accounts for any sends, receives, or gas fees in that period. Whatever's left over is assumed to be from masternode epoch reward payouts.
+Epoch rewards aren't ordinary transactions, so the calculator **infers** them:
 
-It works on the XDC mainnet (chain ID 50). You provide:
-- A start and end date (like 2023-01-01 to 2023-12-31).
-- Your masternode owner address (starts with 0x or xdc).
-- An Etherscan API key (more on that below).
+> **Epoch rewards = (balance at end − balance at start) − (transfers in − transfers out − gas fees)**
 
-It spits out the total inferred epoch rewards in XDC, plus a breakdown of balances, transfers, and fees for transparency.
+1. **Find the period's blocks.** It finds the first and last block of your period, in the time zone you choose.
+2. **Read your balance** just before the start and at the end, from an XDC archive RPC.
+3. **List your transactions** in that range from Etherscan (normal and internal), adding up transfers in, transfers out and gas fees. Failed transactions count their gas fee but not their value, since no XDC moved.
+4. **Whatever the transactions don't explain** is counted as epoch rewards.
 
-## How It Works
+All maths is done in whole units (wei) with no rounding. Every figure is shown, and the full calculation log can be downloaded, so you or your accountant can check the working.
 
-1. **Date to Blocks Conversion**: It takes your start and end dates, converts them to Unix timestamps, and uses binary search on the blockchain to find the exact block numbers where your period starts and ends.
+## How to use it
 
-2. **Balance Checks**: It grabs your wallet balance right before the start block and at the end block using RPC calls to an XDC node (default is a public one from Ankr).
+1. **Masternode owner address:** the wallet that staked the node (xdc… or 0x…), not the node's coinbase.
+2. **Period:** pick dates, or use a quick button: last 30 days, last month, this year, last calendar year, or **last financial year (1 July to 30 June)**.
+3. **Time zone:** starts as your device's time zone. The period runs from 00:00 on the start date to 23:59:59 on the end date in that zone, with daylight saving handled. Choose UTC to match tools that use UTC.
+4. **Etherscan API key:** free, see below.
+5. Click **Calculate epoch rewards**. A year usually takes under a minute.
 
-3. **Transaction History**: Using the Etherscan API, it pulls all normal and internal transactions for your address in that block range. It tallies up:
-   - Money coming in (transfers to you).
-   - Money going out (transfers from you).
-   - Gas fees you paid for transactions.
+The result shows the rewards total and a breakdown: balances, transfers, fees and the block range used. You can **copy a summary**, **download a CSV** for your records, or **download the full log**. Tick "Remember on this device" to save the address, key, time zone and RPC in your browser.
 
-4. **Epoch Reward Calculation**:
-   - Net change = End balance - Start balance.
-   - Adjustments = Incoming transfers - Outgoing transfers - Fees.
-   - Rewards = Net change - Adjustments.
+### Getting a free Etherscan API key
 
-   Everything's handled in wei (the smallest unit of XDC, like satoshis in Bitcoin) to avoid rounding errors, then converted to readable XDC amounts.
+The calculator uses Etherscan's API to list your transactions. One free key covers XDC.
 
-It shows a log of everything in the output box so you can see what's happening.
+1. Sign up at [etherscan.io/register](https://etherscan.io/register).
+2. Go to [etherscan.io/myapikey](https://etherscan.io/myapikey) and click **Add**.
+3. Copy the key into the calculator.
 
-Note: This assumes all unexplained balance increases are from masternode epoch rewards. Also, it only works for XDC mainnet.
+The free plan is plenty: a calculation uses only a handful of requests. Keep your key private.
 
-## How to Use It
+### Network settings
 
-1. **Open the Page**
+The default RPC is `https://rpc.ankr.com/xdc`. If you use your own, it must be an **archive node**, because the calculator reads balances at past blocks. A non-archive RPC gives an error saying so.
 
-2. **Fill in the Fields**:
-   - **RPC URL**: This is the endpoint to talk to the XDC blockchain. Default is https://rpc.ankr.com/xdc, which is free and public. You can change it if you have your own node or prefer another provider.
-   - **Start Date**: The beginning of the period, format YYYY-MM-DD (e.g., 2024-01-01).
-   - **End Date**: The end, same format. Make sure it's after the start date.
-   - **Masternode Owner Address**: Your wallet address that owns the masternode. Can start with "xdc" or "0x" (both prefixes are supported on the page).
-   - **Etherscan API Key**: Required for transaction data. See below on how to get one.
+## Good to know
 
-3. **Hit "Calculate Rewards"**: It'll run the calc and show progress in the output box below the form. Scroll down to see the final rewards at the end.
+- **It's an inference.** Any other unexplained change in balance would also be counted as rewards. If a result looks wrong, check the log.
+- **Native XDC only.** Token transfers aren't included.
+- **Busy addresses work.** Long histories are fetched in batches, so addresses with more than 10,000 transactions in a period are fine.
+- **Private:** the page talks directly to the RPC and Etherscan from your browser. Nothing is sent to XDC Outpost.
 
-If something goes wrong (bad input, network error), it'll show an error in red.
+## Related tools
 
-### What is an API Key and Why Do I Need It?
-
-An API key is like a password that lets this tool access data from Etherscan's servers without abusing their service. Etherscan is a blockchain explorer (like a search engine for XDC transactions). Without the key, they won't let you pull transaction lists, which are needed to account for sends/receives/fees.
-
-The key keeps track of your usage so they can limit free users and charge heavy ones. For this tool, the free tier is plenty—you get 100,000 requests per day, and a single calc might use a handful.
-
-### How to Get an Etherscan API Key
-
-1. Go to https://etherscan.io/register (it's free).
-2. Sign up with an email and password. Confirm your email if asked.
-3. Once logged in, go to https://etherscan.io/myapikey.
-4. Click "Add" to create a new key. Give it a name like "XDC Rewards Calc".
-5. Copy the long string it gives you—that's your API key.
-6. Paste it into the tool's input field.
-
-That's it. The key doesn't cost anything for basic use, and you can make multiple if needed. Keep it private; don't share it.
+- [XDC Tycoon](https://github.com/s4njk4n/XDC_Tycoon): phone alerts for masternode status changes and reward payments.
+- [XDC Sentinel](https://github.com/s4njk4n/XDC_Sentinel): phone alerts when a node goes offline.
+- Need help running your nodes? See [installs and node care](https://github.com/s4njk4n/Plugin-XDC-Secure-RPC-WSS#done-for-you).
 
 ## Contact
 
-If you run into issues, contact me on Telegram (@s4njk4n), Discord (@s4njk4n), X (@s4njk4n), or GitHub (s4njk4n).
+Found a problem or have an idea? Open a [GitHub issue](https://github.com/s4njk4n/XDC_Masternode_Rewards_Calculator/issues), or message me on [Telegram](https://t.me/s4njk4n), Discord (@s4njk4n) or [X](https://x.com/s4njk4n).
 
-Back to the main outpost: [XDC Outpost](https://s4njk4n.github.io/XDCOutpost/)
+[MIT License](LICENSE). Provided as-is, without warranty. Results are estimates for your information; check important figures, such as tax figures, with your accountant.
 
-© 2025 XDC Outpost. Powered by s4njk4n.
+Transaction data powered by [Etherscan.io APIs](https://etherscan.io/apis).
